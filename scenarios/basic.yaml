@@ -1,0 +1,49 @@
+name: basic-select
+description: "Basic point SELECT benchmark: psycopg vs SQLAlchemy"
+
+# ---- Setup / Teardown --------------------------------------------------
+# Setup queries run once before each iteration; teardown runs after each.
+setup:
+  queries:
+    - "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(200))"
+    - "INSERT INTO users (name, email) SELECT 'user_' || i, 'user_' || i || '@example.com' FROM generate_series(1, 1000) AS i ON CONFLICT DO NOTHING"
+
+teardown:
+  queries:
+    - "TRUNCATE TABLE users"
+
+# ---- Steps --------------------------------------------------------------
+steps:
+  - name: point-select
+    query: "SELECT * FROM users WHERE id = %(id)s"
+    params:
+      id: "random_int(1, 1000)"
+
+# ---- Load Profile -------------------------------------------------------
+load:
+  concurrency: 4
+  duration: 10
+  warmup:
+    duration: 3
+
+# ---- Experiment (multi-iteration) ----------------------------------------
+# Run 5 iterations with a fixed seed for reproducibility.
+# pause_between adds 2s of quiet time between iterations to reduce carry-over.
+experiment:
+  iterations: 5
+  seed: 42
+  pause_between: 2.0
+
+# ---- Targets -------------------------------------------------------------
+targets:
+  - name: psycopg-raw
+    stack_id: python+psycopg
+    language: python
+    driver: psycopg
+    dsn: "postgresql://postgres:postgres@localhost:5433/benchflow"
+
+  - name: sqlalchemy-core
+    stack_id: python+sqlalchemy
+    language: python
+    driver: sqlalchemy
+    dsn: "postgresql+psycopg://postgres:postgres@localhost:5433/benchflow"
