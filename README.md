@@ -19,6 +19,7 @@ Most database benchmark scripts are one-off, ad-hoc, and produce results that ca
 - **Apples-to-apples comparison** — Run the exact same workload across different drivers, ORMs, or languages with `bench compare`
 
 BenchFlow is **not** a distributed load generator, a database provisioning tool, or a replacement for TPC benchmarks. It is a focused tool for comparing database access stacks under controlled conditions.
+
 ## Key Features
 
 - **Multi-iteration experiments** with seed control for reproducibility
@@ -30,26 +31,83 @@ BenchFlow is **not** a distributed load generator, a database provisioning tool,
 - **Setup/teardown** queries per iteration for run isolation
 - **Warmup phase** excluded from measurement
 
+## Installation
+
+### From PyPI (recommended)
+
+```bash
+pip install benchflow
+```
+
+### From source (development)
+
+```bash
+git clone https://github.com/yeongseon/benchflow.git
+cd benchflow
+pip install -e ".[dev]"
+```
+
+### With pipx (isolated install)
+
+```bash
+pipx install benchflow
+```
+
+### Dependencies
+
+BenchFlow requires Python 3.10+ and includes the following dependencies:
+
+| Package | Purpose |
+|---------|---------|
+| `psycopg[binary]` | PostgreSQL driver (psycopg3) |
+| `sqlalchemy` | SQLAlchemy Core/ORM driver |
+| `pydantic` | Scenario schema validation |
+| `pyyaml` | YAML scenario loading |
+| `typer` + `rich` | CLI interface |
+| `jinja2` + `plotly` | HTML report generation |
+| `numpy` | Bootstrap CI computation |
+
 ## Quick Start
 
 ```bash
-# Start PostgreSQL
+# 1. Start PostgreSQL
 docker compose up -d
 
-# Install
+# 2. Install BenchFlow
 pip install -e ".[dev]"
 
-# Run benchmark (5 iterations, seed=42)
+# 3. Run a benchmark (5 iterations, seed=42)
 bench run scenarios/basic.yaml -v
 
-# Override iterations/seed from CLI
+# 4. Override iterations/seed from CLI
 bench run scenarios/basic.yaml -n 10 --seed 123
 
-# Compare two runs
+# 5. Compare two runs
 bench compare reports/run1.json reports/run2.json
 
-# Generate HTML report
+# 6. Generate HTML report
 bench report reports/run1.json
+```
+
+For a detailed walkthrough, see [docs/quickstart.md](docs/quickstart.md).
+
+## Example Scenarios
+
+BenchFlow ships with ready-to-use example scenarios in [`examples/`](examples/):
+
+| Scenario | File | Description |
+|----------|------|-------------|
+| OLTP Point Lookups | [`oltp_point_lookups.yaml`](examples/oltp_point_lookups.yaml) | Single-row SELECT by PK — measures point-query latency and driver overhead |
+| Analytical Aggregation | [`analytical_aggregation.yaml`](examples/analytical_aggregation.yaml) | GROUP BY over 500K rows — full-table scans, aggregation, OLAP-style queries |
+| Connection Pool Stress | [`connection_pool_stress.yaml`](examples/connection_pool_stress.yaml) | 32-worker concurrency stress — connection overhead and latency degradation |
+| Mixed Read/Write | [`mixed_read_write.yaml`](examples/mixed_read_write.yaml) | Banking-style OLTP — interleaved SELECTs, UPDATEs, and INSERTs |
+| Index vs Seq Scan | [`index_scan_vs_seq_scan.yaml`](examples/index_scan_vs_seq_scan.yaml) | Selectivity impact on query planner — index scan vs sequential scan paths |
+
+Run any example:
+
+```bash
+bench run examples/oltp_point_lookups.yaml -v
+bench run examples/mixed_read_write.yaml -n 3 --seed 7
 ```
 
 ## Scenario Format
@@ -95,6 +153,8 @@ targets:
     dsn: "postgresql+psycopg://postgres:postgres@localhost:5432/benchflow"
 ```
 
+For the complete DSL specification, see [docs/scenario-reference.md](docs/scenario-reference.md).
+
 ## Architecture
 
 ```
@@ -109,6 +169,8 @@ Workers (per-thread lifecycle)
   +-- PsycopgWorker         raw psycopg3, one connection per thread
   +-- SQLAlchemyWorker      SQLAlchemy Core, shared engine, param translation
 ```
+
+For a detailed architecture walkthrough, see [docs/architecture.md](docs/architecture.md).
 
 ## Project Structure
 
@@ -130,6 +192,8 @@ benchflow/
         psycopg_worker.py
         sqlalchemy_worker.py
   scenarios/basic.yaml
+  examples/                     # Ready-to-use benchmark scenarios
+  docs/                         # Comprehensive documentation
   tests/
 ```
 
@@ -149,6 +213,38 @@ bench compare <baseline.json> <contender.json> [OPTIONS]
 bench report <result.json> [OPTIONS]
   -o, --output          Output HTML path
 ```
+
+> **CLI Stability Note**: The `bench run`, `bench compare`, and `bench report` commands are considered stable as of v0.1.0. Subcommand names and core flags (`-o`, `-n`, `--seed`, `-v`) will follow semantic versioning — breaking changes only in major versions.
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Quick Start](docs/quickstart.md) | Install, run, report, compare — step by step |
+| [Concepts](docs/concepts.md) | Scenarios, steps, targets, workers, iterations, result schema |
+| [Methodology](docs/methodology.md) | Clock sources, HDR histograms, bootstrap CI, time-series |
+| [Reproducibility](docs/reproducibility.md) | Pre/during/post benchmark checklists, pitfalls |
+| [Scenario Reference](docs/scenario-reference.md) | Complete DSL specification with every field documented |
+| [Architecture](docs/architecture.md) | System overview, components, execution flow, extension points |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, code style, and guidelines for adding scenarios and workers.
+
+## Citing BenchFlow
+
+If you use BenchFlow in your research, please cite it:
+
+```bibtex
+@software{choe2026benchflow,
+  title  = {BenchFlow: Research-Grade Database Benchmark Platform},
+  author = {Choe, Yeongseon},
+  year   = {2026},
+  url    = {https://github.com/yeongseon/benchflow},
+}
+```
+
+See [`CITATION.cff`](CITATION.cff) for machine-readable citation metadata.
 
 ## License
 

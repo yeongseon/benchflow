@@ -1,0 +1,68 @@
+# ============================================================================
+# Connection Pool Stress — High-concurrency connection churn
+# ============================================================================
+# Stresses the database connection subsystem with high concurrency.
+# Each BenchFlow worker opens its own connection, so concurrency=32 means
+# 32 simultaneous connections executing queries.
+#
+# This benchmark reveals:
+#   - Connection overhead per-query under contention
+#   - Backend process scaling behavior (PostgreSQL forks per connection)
+#   - Latency degradation curve as concurrency increases
+#
+# Tip: Run this scenario multiple times with different concurrency values
+# (8, 16, 32, 64) and use `benchflow compare` to visualize the scaling.
+# ============================================================================
+
+name: connection-pool-stress
+description: >
+  High-concurrency stress test with 32 parallel workers hitting a
+  lightweight query. Measures connection overhead, contention effects,
+  and latency degradation under load. Useful for capacity planning.
+
+setup:
+  queries:
+    - >
+      CREATE TABLE IF NOT EXISTS kv_store (
+        key   VARCHAR(64) PRIMARY KEY,
+        value JSONB NOT NULL DEFAULT '{}'
+      )
+    - >
+      INSERT INTO kv_store (key, value)
+      SELECT
+        'key_' || i,
+        jsonb_build_object('seq', i, 'data', md5(i::text))
+      FROM generate_series(1, 50000) AS i
+      ON CONFLICT (key) DO NOTHING
+
+teardown:
+  queries:
+    - "DROP TABLE IF EXISTS kv_store"
+
+steps:
+  - name: kv-lookup
+    query: "SELECT value FROM kv_store WHERE key = %(key)s"
+    params:
+      key: "random_choice('key_1','key_100','key_500','key_1000','key_5000','key_10000','key_25000','key_50000')"
+
+load:
+  concurrency: 32
+  duration: 20
+  warmup:
+    duration: 5
+
+experiment:
+  iterations: 5
+  seed: 99
+  pause_between: 2.0
+
+targets:
+  - name: psycopg-raw
+    stack_id: python+psycopg
+    driver: psycopg
+    dsn: "postgresql://postgres:postgres@localhost:5432/benchflow"
+
+  - name: sqlalchemy-core
+    stack_id: python+sqlalchemy
+    driver: sqlalchemy
+    dsn: "postgresql+psycopg://postgres:postgres@localhost:5432/benchflow"

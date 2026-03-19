@@ -19,7 +19,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
+    "pytest-cov>=4.0",
     "ruff>=0.4",
+    "pyright>=1.1",
 ]
 
 [project.scripts]
@@ -27,10 +29,14 @@ bench = "benchflow.cli.main:app"
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"benchflow/core/report/html.py" = ["E501"]
+"tests/*" = ["E501"]
 
 [build-system]
 requires = ["setuptools>=68.0"]
@@ -38,3 +44,41 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["benchflow*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "integration: marks tests requiring a live database (deselect with '-m \"not integration\"')",
+]
+
+[tool.coverage.run]
+source = ["benchflow"]
+omit = [
+    "benchflow/__main__.py",
+    "tests/*",
+]
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@overload",
+    "raise NotImplementedError",
+]
+
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+include = ["benchflow"]
+exclude = ["tests", "examples", "**/__pycache__"]
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnusedImport = true
+reportUnusedVariable = true

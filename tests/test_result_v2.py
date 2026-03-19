@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
-
 from benchflow.core.result import (
     AggregateMetric,
     AggregateStepResult,
     AggregateTargetResult,
-    BenchFlowInfo,
     ConfidenceInterval,
     DatabaseInfo,
     EnvironmentInfo,
@@ -186,8 +183,20 @@ class TestRunResultV2:
                                     latency_summary=_make_summary(),
                                     throughput_ops_s=100.0,
                                     time_series=[
-                                        TimeWindow(second=0, ops=50, p50_ns=500.0, p95_ns=900.0, p99_ns=990.0),
-                                        TimeWindow(second=1, ops=50, p50_ns=510.0, p95_ns=920.0, p99_ns=995.0),
+                                        TimeWindow(
+                                            second=0,
+                                            ops=50,
+                                            p50_ns=500.0,
+                                            p95_ns=900.0,
+                                            p99_ns=990.0,
+                                        ),
+                                        TimeWindow(
+                                            second=1,
+                                            ops=50,
+                                            p50_ns=510.0,
+                                            p95_ns=920.0,
+                                            p99_ns=995.0,
+                                        ),
                                     ],
                                 )
                             ],

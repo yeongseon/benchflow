@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 import psycopg
+from psycopg import sql
 
 from benchflow.core.scenario.schema import Scenario, Step
 from benchflow.workers.protocol import Worker, WorkerFactory, register_worker
@@ -26,14 +27,14 @@ class PsycopgWorker(Worker):
         assert self._conn is not None
         params = step.resolve_params()
         with self._conn.cursor() as cur:
-            cur.execute(step.query, params or None)
+            cur.execute(sql.SQL(step.query), params or None)  # type: ignore[arg-type]  # user-provided SQL
             cur.fetchall()
 
     def execute_raw(self, query: str) -> None:
         """Execute a raw SQL query for setup/teardown."""
         assert self._conn is not None
         with self._conn.cursor() as cur:
-            cur.execute(query)
+            cur.execute(sql.SQL(query))  # type: ignore[arg-type]  # user-provided SQL
 
     def introspect(self) -> dict[str, Any]:
         """Return PostgreSQL server version and key settings."""
@@ -41,7 +42,7 @@ class PsycopgWorker(Worker):
         info: dict[str, Any] = {}
         try:
             with self._conn.cursor() as cur:
-                cur.execute("SELECT version()")
+                cur.execute(sql.SQL("SELECT version()"))
                 row = cur.fetchone()
                 if row:
                     info["server_version"] = row[0]
@@ -62,7 +63,7 @@ class PsycopgWorker(Worker):
                 config: dict[str, str] = {}
                 for setting in _settings_of_interest:
                     try:
-                        cur.execute("SHOW %s" % setting)  # noqa: S608 — setting names are hardcoded
+                        cur.execute(sql.SQL("SHOW {}").format(sql.Identifier(setting)))  # noqa: S608
                         row = cur.fetchone()
                         if row:
                             config[setting] = row[0]

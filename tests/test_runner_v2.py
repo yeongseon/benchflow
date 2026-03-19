@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from benchflow.core.runner.runner import run_benchmark, run_target
+from benchflow.core.runner.runner import run_benchmark
 from benchflow.core.scenario.schema import (
     ExperimentConfig,
     LoadConfig,
@@ -19,10 +19,10 @@ from benchflow.core.scenario.schema import (
 )
 from benchflow.workers.protocol import Worker, WorkerFactory, register_worker
 
-
 # ---------------------------------------------------------------------------
 # Mock worker that tracks setup/teardown/introspect calls
 # ---------------------------------------------------------------------------
+
 
 class InstrumentedWorker(Worker):
     """Worker that records all lifecycle calls for testing."""
@@ -76,6 +76,7 @@ register_worker("mock+instrumented", InstrumentedWorkerFactory)
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def reset_worker_tracking():
@@ -189,7 +190,7 @@ class TestSetupTeardown:
         scenario = _make_scenario(
             setup_queries=["CREATE TABLE test (id INT)", "INSERT INTO test VALUES (1)"],
         )
-        result = run_benchmark(scenario)
+        run_benchmark(scenario)
 
         assert "CREATE TABLE test (id INT)" in InstrumentedWorker.setup_queries_executed
         assert "INSERT INTO test VALUES (1)" in InstrumentedWorker.setup_queries_executed
@@ -198,7 +199,7 @@ class TestSetupTeardown:
         scenario = _make_scenario(
             teardown_queries=["DROP TABLE IF EXISTS test"],
         )
-        result = run_benchmark(scenario)
+        run_benchmark(scenario)
 
         assert "DROP TABLE IF EXISTS test" in InstrumentedWorker.setup_queries_executed
 
@@ -209,7 +210,7 @@ class TestSetupTeardown:
             setup_queries=["SETUP_QUERY"],
             teardown_queries=["TEARDOWN_QUERY"],
         )
-        result = run_benchmark(scenario)
+        run_benchmark(scenario)
 
         # 3 iterations × 1 setup query + 3 iterations × 1 teardown query
         setup_count = InstrumentedWorker.setup_queries_executed.count("SETUP_QUERY")

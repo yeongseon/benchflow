@@ -1,0 +1,69 @@
+# ============================================================================
+# OLTP Point Lookups — Classic single-row SELECT by primary key
+# ============================================================================
+# Measures raw latency and throughput of point queries under concurrency.
+# This is the most fundamental OLTP micro-benchmark: how fast can the
+# database serve single-row lookups by indexed key?
+#
+# What to look for:
+#   - p50 vs p99 latency spread (indicates tail-latency behavior)
+#   - Throughput scaling with concurrency
+#   - psycopg vs SQLAlchemy overhead on the same workload
+# ============================================================================
+
+name: oltp-point-lookups
+description: >
+  Single-row SELECT by primary key. Measures point-query latency and
+  throughput with realistic table sizes (100K rows). Useful for comparing
+  driver overhead, connection latency, and database cache efficiency.
+
+setup:
+  queries:
+    - >
+      CREATE TABLE IF NOT EXISTS accounts (
+        id        SERIAL PRIMARY KEY,
+        username  VARCHAR(64)  NOT NULL,
+        email     VARCHAR(128) NOT NULL,
+        balance   NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+        created   TIMESTAMP NOT NULL DEFAULT now()
+      )
+    - >
+      INSERT INTO accounts (username, email, balance)
+      SELECT
+        'user_' || i,
+        'user_' || i || '@example.com',
+        round((random() * 10000)::numeric, 2)
+      FROM generate_series(1, 100000) AS i
+      ON CONFLICT DO NOTHING
+
+teardown:
+  queries:
+    - "DROP TABLE IF EXISTS accounts"
+
+steps:
+  - name: point-select-by-pk
+    query: "SELECT id, username, email, balance FROM accounts WHERE id = %(id)s"
+    params:
+      id: "random_int(1, 100000)"
+
+load:
+  concurrency: 8
+  duration: 30
+  warmup:
+    duration: 5
+
+experiment:
+  iterations: 5
+  seed: 42
+  pause_between: 3.0
+
+targets:
+  - name: psycopg-raw
+    stack_id: python+psycopg
+    driver: psycopg
+    dsn: "postgresql://postgres:postgres@localhost:5432/benchflow"
+
+  - name: sqlalchemy-core
+    stack_id: python+sqlalchemy
+    driver: sqlalchemy
+    dsn: "postgresql+psycopg://postgres:postgres@localhost:5432/benchflow"

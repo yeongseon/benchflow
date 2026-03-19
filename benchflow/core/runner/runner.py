@@ -21,7 +21,6 @@ from dataclasses import dataclass, field
 from benchflow.core.metrics.aggregator import (
     build_step_result_from_histogram,
     compute_cross_iteration_aggregate,
-    reservoir_sample,
 )
 from benchflow.core.metrics.histogram import HdrHistogram
 from benchflow.core.result import (
@@ -39,8 +38,8 @@ from benchflow.core.result import (
     StepResult,
     TargetResult,
     TimeWindow,
+    compute_scenario_signature,
 )
-from benchflow.core.result import compute_scenario_signature
 from benchflow.core.scenario.schema import Scenario, Step, TargetConfig
 from benchflow.workers.protocol import Worker, get_worker_factory
 
@@ -97,16 +96,7 @@ def _worker_thread(
         for step in steps:
             t0 = time.perf_counter_ns()
             try:
-                if rng and step.params:
-                    # Use seeded RNG for reproducible params
-                    params = step.resolve_params(rng=rng)
-                    # Temporarily override params for this execution
-                    original_params = step.params
-                    step_copy = Step(name=step.name, query=step.query, params=None)
-                    # Execute with resolved params directly
-                    worker.execute(step)
-                else:
-                    worker.execute(step)
+                worker.execute(step)
             except Exception as exc:
                 elapsed_ns = time.perf_counter_ns() - start_ns
                 second = int(elapsed_ns // 1_000_000_000)
@@ -115,9 +105,7 @@ def _worker_thread(
                     result.step_time_errors[step.name].get(second, 0) + 1
                 )
                 if len(result.error_samples) < MAX_ERROR_SAMPLES:
-                    result.error_samples.append(
-                        ErrorSample(step=step.name, message=str(exc))
-                    )
+                    result.error_samples.append(ErrorSample(step=step.name, message=str(exc)))
                 continue
             t1 = time.perf_counter_ns()
             latency = t1 - t0
@@ -319,8 +307,12 @@ def run_target(
             if len(samples) > RESERVOIR_MAX:
                 samples = random.sample(samples, RESERVOIR_MAX)
             sr = build_step_result_from_histogram(
-                step.name, hist, errs, actual_duration,
-                samples_ns=samples, time_series=time_series,
+                step.name,
+                hist,
+                errs,
+                actual_duration,
+                samples_ns=samples,
+                time_series=time_series,
             )
             step_results.append(sr)
 
@@ -337,10 +329,14 @@ def run_target(
         overall = compute_latency_summary_from_histogram(merged_overall)
 
     total_errors = sum(merged_errors.values())
-    error_info = ErrorInfo(
-        count_total=total_errors,
-        sample=all_error_samples[:MAX_ERROR_SAMPLES],
-    ) if total_errors > 0 else None
+    error_info = (
+        ErrorInfo(
+            count_total=total_errors,
+            sample=all_error_samples[:MAX_ERROR_SAMPLES],
+        )
+        if total_errors > 0
+        else None
+    )
 
     return TargetResult(
         stack_id=target.stack_id,

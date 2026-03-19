@@ -4,7 +4,6 @@ from benchflow.core.scenario.schema import (
     Scenario,
     Step,
     TargetConfig,
-    WarmupConfig,
 )
 
 

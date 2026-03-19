@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from typing import Any
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
@@ -12,7 +13,6 @@ from benchflow.workers.protocol import Worker, WorkerFactory, register_worker
 logger = logging.getLogger(__name__)
 
 _PYFORMAT_RE = re.compile(r"%\((\w+)\)s")
-
 
 
 class SQLAlchemyWorker(Worker):

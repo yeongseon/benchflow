@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
-      - run: python -m pytest tests/ -v --tb=short
+      - run: python -m pytest tests/ -v --tb=short --cov=benchflow --cov-report=term-missing --ignore=tests/integration
 
   build:
     name: Build Package
@@ -75,7 +75,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: python -m pytest tests/integration/ -v --tb=short
+      - run: python -m pytest tests/integration/ -v --tb=short --cov=benchflow --cov-report=term-missing
         env:
           BENCHFLOW_TEST_DSN: "postgresql://postgres:postgres@localhost:5432/benchflow"
           BENCHFLOW_TEST_DSN_SQLALCHEMY: "postgresql+psycopg://postgres:postgres@localhost:5432/benchflow"
@@ -89,5 +89,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: pip install pyright
       - run: pyright benchflow/

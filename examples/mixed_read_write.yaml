@@ -1,0 +1,89 @@
+# ============================================================================
+# Mixed Read/Write — Realistic OLTP with INSERTs, UPDATEs, and SELECTs
+# ============================================================================
+# Simulates a realistic transactional workload where reads and writes
+# are interleaved. BenchFlow randomly selects one step per operation,
+# so the step distribution reflects real application access patterns.
+#
+# Workload mix (per step selection):
+#   - read-balance:      SELECT by PK (fast, cache-friendly)
+#   - update-balance:    UPDATE by PK (write-heavy, WAL pressure)
+#   - insert-transaction: INSERT into append-only log (sequential IO)
+#
+# What to look for:
+#   - Write amplification impact on read latency
+#   - WAL flush overhead visible in p99 write latency
+#   - Transaction log INSERT throughput (sequential vs random IO)
+# ============================================================================
+
+name: mixed-read-write
+description: >
+  Mixed OLTP workload combining reads, updates, and inserts against
+  a banking-style schema. Exercises both random and sequential IO
+  patterns to reveal realistic database behavior.
+
+setup:
+  queries:
+    - >
+      CREATE TABLE IF NOT EXISTS bank_accounts (
+        id      SERIAL PRIMARY KEY,
+        owner   VARCHAR(64) NOT NULL,
+        balance NUMERIC(12,2) NOT NULL DEFAULT 1000.00
+      )
+    - >
+      CREATE TABLE IF NOT EXISTS tx_log (
+        id         SERIAL PRIMARY KEY,
+        account_id INT NOT NULL,
+        amount     NUMERIC(12,2) NOT NULL,
+        ts         TIMESTAMP NOT NULL DEFAULT now()
+      )
+    - >
+      INSERT INTO bank_accounts (owner, balance)
+      SELECT 'owner_' || i, round((random() * 9000 + 1000)::numeric, 2)
+      FROM generate_series(1, 50000) AS i
+      ON CONFLICT DO NOTHING
+
+teardown:
+  queries:
+    - "DROP TABLE IF EXISTS tx_log"
+    - "DROP TABLE IF EXISTS bank_accounts"
+
+steps:
+  - name: read-balance
+    query: "SELECT id, owner, balance FROM bank_accounts WHERE id = %(id)s"
+    params:
+      id: "random_int(1, 50000)"
+
+  - name: update-balance
+    query: "UPDATE bank_accounts SET balance = balance + %(delta)s WHERE id = %(id)s"
+    params:
+      id: "random_int(1, 50000)"
+      delta: "random_int(-100, 100)"
+
+  - name: insert-transaction
+    query: "INSERT INTO tx_log (account_id, amount) VALUES (%(account_id)s, %(amount)s)"
+    params:
+      account_id: "random_int(1, 50000)"
+      amount: "random_int(1, 500)"
+
+load:
+  concurrency: 8
+  duration: 30
+  warmup:
+    duration: 5
+
+experiment:
+  iterations: 5
+  seed: 2024
+  pause_between: 3.0
+
+targets:
+  - name: psycopg-raw
+    stack_id: python+psycopg
+    driver: psycopg
+    dsn: "postgresql://postgres:postgres@localhost:5432/benchflow"
+
+  - name: sqlalchemy-core
+    stack_id: python+sqlalchemy
+    driver: sqlalchemy
+    dsn: "postgresql+psycopg://postgres:postgres@localhost:5432/benchflow"

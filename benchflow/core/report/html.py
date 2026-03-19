@@ -690,15 +690,9 @@ def generate_html_report(result: RunResult) -> str:
     Returns:
         Complete HTML string ready for writing to a file.
     """
-    has_samples = any(
-        bool(step.samples_ns)
-        for target in result.targets
-        for step in target.steps
-    )
+    has_samples = any(bool(step.samples_ns) for target in result.targets for step in target.steps)
     has_time_series = any(
-        bool(step.time_series)
-        for target in result.targets
-        for step in target.steps
+        bool(step.time_series) for target in result.targets for step in target.steps
     )
 
     return REPORT_TEMPLATE.render(

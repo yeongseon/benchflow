@@ -19,7 +19,7 @@ Design decisions (per Oracle recommendation):
 from __future__ import annotations
 
 import math
-from typing import Iterator
+from collections.abc import Iterator
 
 
 class HdrHistogram:
@@ -69,10 +69,8 @@ class HdrHistogram:
         self._significant_digits = significant_digits
 
         # Sub-bucket geometry
-        largest_value_with_single_unit_resolution = 2 * (10 ** significant_digits)
-        self._sub_bucket_bits = int(
-            math.ceil(math.log2(largest_value_with_single_unit_resolution))
-        )
+        largest_value_with_single_unit_resolution = 2 * (10**significant_digits)
+        self._sub_bucket_bits = int(math.ceil(math.log2(largest_value_with_single_unit_resolution)))
         self._sub_bucket_count = 1 << self._sub_bucket_bits
         self._sub_bucket_half_count = self._sub_bucket_count >> 1
         self._sub_bucket_half_count_magnitude = self._sub_bucket_bits - 1

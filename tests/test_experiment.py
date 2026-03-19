@@ -8,7 +8,6 @@ import pytest
 
 from benchflow.core.scenario.schema import (
     ExperimentConfig,
-    LoadConfig,
     ParamGenerator,
     Scenario,
     Step,

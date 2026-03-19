@@ -1,0 +1,80 @@
+# ============================================================================
+# Index Scan vs Sequential Scan — Selectivity impact on query planning
+# ============================================================================
+# Demonstrates how query selectivity affects PostgreSQL's query planner
+# choice between index scan and sequential scan. This scenario uses two
+# steps with different WHERE clause selectivity:
+#
+#   - narrow-select:   Highly selective (1 row) → index scan
+#   - wide-select:     Low selectivity (10% of table) → likely seq scan
+#
+# What to look for:
+#   - Latency difference between index vs sequential scan paths
+#   - Impact of shared_buffers hit ratio on seq scan performance
+#   - p99 latency of wide scans under concurrency (buffer contention)
+#
+# Research note: This scenario is useful for studying planner cost-model
+# accuracy. Compare actual latency ratios against `EXPLAIN ANALYZE`
+# cost estimates to evaluate planner calibration.
+# ============================================================================
+
+name: index-scan-vs-seq-scan
+description: >
+  Compares index-scan (high selectivity) vs sequential-scan (low
+  selectivity) query performance on the same table. Useful for
+  studying query planner behavior and IO pattern differences.
+
+setup:
+  queries:
+    - >
+      CREATE TABLE IF NOT EXISTS events (
+        id         SERIAL PRIMARY KEY,
+        event_type INT NOT NULL,
+        payload    TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT now()
+      )
+    - "CREATE INDEX IF NOT EXISTS idx_events_type ON events (event_type)"
+    - >
+      INSERT INTO events (event_type, payload, created_at)
+      SELECT
+        (random() * 100)::int,
+        repeat(md5(i::text), 3),
+        now() - (random() * interval '90 days')
+      FROM generate_series(1, 200000) AS i
+
+teardown:
+  queries:
+    - "DROP TABLE IF EXISTS events"
+
+steps:
+  - name: narrow-select
+    query: "SELECT id, event_type, created_at FROM events WHERE id = %(id)s"
+    params:
+      id: "random_int(1, 200000)"
+
+  - name: wide-select
+    query: "SELECT COUNT(*), AVG(event_type) FROM events WHERE event_type = %(et)s"
+    params:
+      et: "random_int(0, 9)"
+
+load:
+  concurrency: 4
+  duration: 30
+  warmup:
+    duration: 5
+
+experiment:
+  iterations: 3
+  seed: 314
+  pause_between: 5.0
+
+targets:
+  - name: psycopg-raw
+    stack_id: python+psycopg
+    driver: psycopg
+    dsn: "postgresql://postgres:postgres@localhost:5432/benchflow"
+
+  - name: sqlalchemy-core
+    stack_id: python+sqlalchemy
+    driver: sqlalchemy
+    dsn: "postgresql+psycopg://postgres:postgres@localhost:5432/benchflow"

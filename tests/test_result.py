@@ -1,5 +1,3 @@
-import json
-
 from benchflow.core.result import (
     CompareResult,
     ComparisonItem,
@@ -14,7 +12,9 @@ from benchflow.core.result import (
 )
 
 
-def _make_summary(p50: float = 1000000, p95: float = 2000000, p99: float = 3000000) -> LatencySummary:
+def _make_summary(
+    p50: float = 1000000, p95: float = 2000000, p99: float = 3000000
+) -> LatencySummary:
     return LatencySummary(
         min_ns=500000,
         max_ns=5000000,

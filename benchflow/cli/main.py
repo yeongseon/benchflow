@@ -9,27 +9,44 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+import benchflow.workers.python.psycopg_worker  # noqa: F401, E402  # pyright: ignore[reportUnusedImport]
+import benchflow.workers.python.sqlalchemy_worker  # noqa: F401, E402  # pyright: ignore[reportUnusedImport]
 from benchflow.core.result import CompareResult, ComparisonItem, RunResult
 
 app = typer.Typer(
     name="bench",
-    help="BenchFlow — Scenario-based polyglot database benchmark platform",
+    help="BenchFlow \u2014 Scenario-based polyglot database benchmark platform",
     no_args_is_help=True,
 )
 console = Console()
-
-# Ensure workers are registered on import
-import benchflow.workers.python.psycopg_worker  # noqa: F401
-import benchflow.workers.python.sqlalchemy_worker  # noqa: F401
 
 
 @app.command()
 def run(
     scenario_path: Annotated[str, typer.Argument(help="Path to scenario YAML file")],
     output: Annotated[str, typer.Option("--output", "-o", help="Output JSON path")] = "",
-    iterations: Annotated[int, typer.Option("--iterations", "-n", help="Number of experiment iterations (overrides scenario)")] = 0,
-    seed: Annotated[int | None, typer.Option("--seed", help="Random seed for reproducibility (overrides scenario)")] = None,
-    capture_db_info: Annotated[bool, typer.Option("--capture-db-info", help="Capture DB server config via introspect()")] = False,
+    iterations: Annotated[
+        int,
+        typer.Option(
+            "--iterations",
+            "-n",
+            help="Number of experiment iterations (overrides scenario)",
+        ),
+    ] = 0,
+    seed: Annotated[
+        int | None,
+        typer.Option(
+            "--seed",
+            help="Random seed for reproducibility (overrides scenario)",
+        ),
+    ] = None,
+    capture_db_info: Annotated[
+        bool,
+        typer.Option(
+            "--capture-db-info",
+            help="Capture DB server config via introspect()",
+        ),
+    ] = False,
     verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
 ) -> None:
     """Run a benchmark scenario against all defined targets."""
@@ -56,7 +73,9 @@ def run(
         f"warmup={scenario.load.warmup.duration}s"
     )
     if effective_iterations > 1:
-        console.print(f"  iterations={effective_iterations}, seed={seed or scenario.experiment.seed}")
+        console.print(
+            f"  iterations={effective_iterations}, seed={seed or scenario.experiment.seed}"
+        )
     console.print(f"  targets: {[t.stack_id for t in scenario.targets]}")
     console.print()
 
@@ -114,21 +133,27 @@ def compare(
             bs = baseline_steps[step_name]
             cs = contender_steps[step_name]
 
-            comparisons.append(ComparisonItem(
-                stack_id=stack_id,
-                step=step_name,
-                baseline=bs.latency_summary,
-                contender=cs.latency_summary,
-                p50_ratio=round(cs.latency_summary.p50_ns / bs.latency_summary.p50_ns, 3)
-                if bs.latency_summary.p50_ns > 0 else 0.0,
-                p95_ratio=round(cs.latency_summary.p95_ns / bs.latency_summary.p95_ns, 3)
-                if bs.latency_summary.p95_ns > 0 else 0.0,
-                p99_ratio=round(cs.latency_summary.p99_ns / bs.latency_summary.p99_ns, 3)
-                if bs.latency_summary.p99_ns > 0 else 0.0,
-                throughput_ratio=round(cs.throughput_ops_s / bs.throughput_ops_s, 3)
-                if bs.throughput_ops_s > 0 else 0.0,
-                error_delta=cs.errors - bs.errors,
-            ))
+            comparisons.append(
+                ComparisonItem(
+                    stack_id=stack_id,
+                    step=step_name,
+                    baseline=bs.latency_summary,
+                    contender=cs.latency_summary,
+                    p50_ratio=round(cs.latency_summary.p50_ns / bs.latency_summary.p50_ns, 3)
+                    if bs.latency_summary.p50_ns > 0
+                    else 0.0,
+                    p95_ratio=round(cs.latency_summary.p95_ns / bs.latency_summary.p95_ns, 3)
+                    if bs.latency_summary.p95_ns > 0
+                    else 0.0,
+                    p99_ratio=round(cs.latency_summary.p99_ns / bs.latency_summary.p99_ns, 3)
+                    if bs.latency_summary.p99_ns > 0
+                    else 0.0,
+                    throughput_ratio=round(cs.throughput_ops_s / bs.throughput_ops_s, 3)
+                    if bs.throughput_ops_s > 0
+                    else 0.0,
+                    error_delta=cs.errors - bs.errors,
+                )
+            )
 
     compare_result = CompareResult(
         baseline_run_id=baseline.run_id,
@@ -218,9 +243,7 @@ def _print_comparison(compare: CompareResult) -> None:
         )
 
     console.print(table)
-    console.print(
-        f"\nBaseline: {compare.baseline_run_id} → Contender: {compare.contender_run_id}"
-    )
+    console.print(f"\nBaseline: {compare.baseline_run_id} → Contender: {compare.contender_run_id}")
     if not compare.scenario_match:
         console.print("[yellow]⚠ Scenario signatures differ[/yellow]")
 

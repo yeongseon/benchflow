@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+title: "BenchFlow: Research-Grade Database Benchmark Platform"
+message: >-
+  If you use BenchFlow in your research, please cite it using
+  the metadata from this file.
+type: software
+authors:
+  - family-names: Choe
+    given-names: Yeongseon
+    email: yeongseon.choe@gmail.com
+repository-code: "https://github.com/yeongseon/benchflow"
+url: "https://github.com/yeongseon/benchflow"
+license: MIT
+version: 0.1.0
+date-released: "2026-03-19"
+keywords:
+  - database
+  - benchmark
+  - performance
+  - postgresql
+  - reproducibility
+  - statistics
+abstract: >-
+  BenchFlow is a scenario-based database benchmark platform designed
+  for researchers and engineers. It provides multi-iteration experiments
+  with bootstrap confidence intervals, HDR histogram latency recording,
+  time-series collection, and publication-quality HTML reports. BenchFlow
+  enables reproducible, statistically rigorous comparisons of database
+  access stacks (drivers, ORMs, languages) under identical workloads.

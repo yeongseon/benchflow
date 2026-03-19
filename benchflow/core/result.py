@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field
 
 import benchflow
 
-
 # ---------------------------------------------------------------------------
 # Metadata models
 # ---------------------------------------------------------------------------
@@ -278,9 +277,7 @@ class RunResult(BaseModel):
 
     schema_version: int = 2
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
-    created_at: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     benchflow: BenchFlowInfo = Field(default_factory=BenchFlowInfo)
     environment: EnvironmentInfo = Field(default_factory=EnvironmentInfo)
     db: DatabaseInfo

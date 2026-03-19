@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import random
 
-import pytest
-
 from benchflow.core.metrics.aggregator import (
     bootstrap_ci,
     compute_aggregate_metric,
@@ -74,7 +72,9 @@ class TestAggregateMetric:
 
 
 class TestCrossIterationAggregate:
-    def _make_step_result(self, name: str, ops: int, p50: float, p95: float, p99: float) -> StepResult:
+    def _make_step_result(
+        self, name: str, ops: int, p50: float, p95: float, p99: float
+    ) -> StepResult:
         return StepResult(
             name=name,
             ops=ops,
