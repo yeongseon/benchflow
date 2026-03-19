@@ -4,6 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![PyPI](https://img.shields.io/pypi/v/benchflow.svg)](https://pypi.org/project/benchflow/)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://yeongseon.github.io/benchflow/)
 
 Research-grade, scenario-based database benchmark platform for DB researchers and engineers.
 

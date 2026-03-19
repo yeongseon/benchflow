@@ -178,3 +178,8 @@ database state, which is critical for reproducible results.
 
 Setup failures are fail-fast (abort the run). Teardown failures are logged
 but do not abort.
+
+## See Also
+
+- [Statistical Methodology](methodology.md)
+- [Architecture](architecture.md)

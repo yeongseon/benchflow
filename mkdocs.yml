@@ -1,0 +1,61 @@
+site_name: BenchFlow
+site_url: https://yeongseon.github.io/benchflow/
+repo_url: https://github.com/yeongseon/benchflow
+repo_name: yeongseon/benchflow
+
+theme:
+  name: material
+  icon:
+    logo: material/database-clock
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+    - search.suggest
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Quick Start: quickstart.md
+      - Concepts: concepts.md
+  - User Guide:
+      - Scenario Reference: scenario-reference.md
+      - Reproducibility: reproducibility.md
+  - Deep Dive:
+      - Methodology: methodology.md
+      - Architecture: architecture.md
+  - Development:
+      - Contributing: contributing.md
+      - Changelog: changelog.md

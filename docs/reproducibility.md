@@ -171,3 +171,7 @@ If you are including BenchFlow results in a paper:
 > Results show psycopg3 achieves 1.42x higher throughput (95% CI:
 > [1.38, 1.46]) and 28% lower p95 latency. Environment: PostgreSQL 16.2
 > on Linux 6.5.0 (8-core AMD Ryzen 7, 32 GB RAM, Python 3.12.1).
+
+## See Also
+
+- [Statistical Methodology](methodology.md)

@@ -303,3 +303,7 @@ The metrics pipeline is modular. To add new per-step metrics:
 4. **Versioned schemas** — result JSON includes `schema_version` for forward compatibility
 5. **Publication-first reporting** — reports are designed for papers, not dashboards
 6. **Reproducibility by default** — seed control, environment capture, versioned results
+
+## See Also
+
+- [Scenario DSL Reference](scenario-reference.md)

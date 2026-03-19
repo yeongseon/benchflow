@@ -129,6 +129,11 @@ bench compare reports/run_a.json reports/run_b.json
 Outputs a comparison table showing latency and throughput ratios between
 baseline and contender, with a verdict (faster / slower / same).
 
+## See Also
+
+- [Core Concepts](concepts.md)
+- [Scenario DSL Reference](scenario-reference.md)
+
 ## What's Next?
 
 - [Concepts](concepts.md) — Core abstractions (scenarios, workers, iterations)

@@ -211,3 +211,8 @@ recommended for publication-quality results.
 4. **Histogram quantization**: Latency values are quantized to histogram
    bucket boundaries. With 3 significant digits, the worst-case relative
    error is ~0.1%, which is negligible compared to typical measurement noise.
+
+## See Also
+
+- [Core Concepts](concepts.md)
+- [Reproducibility Checklist](reproducibility.md)
