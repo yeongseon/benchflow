@@ -16,6 +16,7 @@ import logging
 import random
 import threading
 import time
+import uuid
 from dataclasses import dataclass, field
 
 from benchflow.core.metrics.aggregator import (
@@ -40,6 +41,7 @@ from benchflow.core.result import (
     TimeWindow,
     compute_scenario_signature,
 )
+from benchflow.core.runner.progress import NullProgress, RunProgress
 from benchflow.core.scenario.schema import Scenario, Step, TargetConfig
 from benchflow.workers.protocol import Worker, get_worker_factory
 
@@ -53,6 +55,7 @@ def _get_external_runner():  # noqa: ANN202
         from benchflow.workers.external.subprocess_worker import (
             run_external_target as _fn,
         )
+
         _run_external_target = _fn
     return _run_external_target
 
@@ -60,6 +63,7 @@ def _get_external_runner():  # noqa: ANN202
 def _is_external_target(target: TargetConfig) -> bool:
     """A target is external if its worker_config contains a 'command' key."""
     return "command" in target.worker_config
+
 
 logger = logging.getLogger(__name__)
 
@@ -233,8 +237,10 @@ def run_target(
     scenario: Scenario,
     target: TargetConfig,
     rng: random.Random | None = None,
+    progress: RunProgress | None = None,
 ) -> TargetResult:
     """Run a single iteration for one target."""
+    progress_impl: RunProgress = progress if progress is not None else NullProgress()
     factory_cls = get_worker_factory(target.stack_id)
     factory = factory_cls()
 
@@ -250,13 +256,19 @@ def run_target(
         workers.append(w)
 
     if warmup_s > 0:
+        progress_impl.on_warmup_start(target.stack_id, warmup_s)
         logger.info("Warming up %s for %ds...", target.stack_id, warmup_s)
         for w in workers:
             w.warmup(scenario.steps, warmup_s)
+        progress_impl.on_warmup_done()
 
     barrier = threading.Barrier(concurrency)
     thread_results = [ThreadResult() for _ in range(concurrency)]
     threads: list[threading.Thread] = []
+
+    for tr in thread_results:
+        for step in scenario.steps:
+            tr.step_ops[step.name] = 0
 
     # Create per-thread RNG if seed is provided
     thread_rngs: list[random.Random | None] = []
@@ -268,6 +280,7 @@ def run_target(
 
     gc.disable()
     run_start = time.perf_counter()
+    progress_impl.on_measurement_start(target.stack_id, duration_s)
 
     for i in range(concurrency):
         t = threading.Thread(
@@ -284,11 +297,33 @@ def run_target(
         threads.append(t)
         t.start()
 
+    stop_monitor = threading.Event()
+
+    def _collect_total_ops() -> int:
+        return sum(sum(tr.step_ops.values()) for tr in thread_results)
+
+    def _progress_monitor() -> None:
+        while not stop_monitor.is_set():
+            elapsed = time.perf_counter() - run_start
+            progress_impl.on_measurement_tick(elapsed, _collect_total_ops())
+            if stop_monitor.wait(0.5):
+                return
+
+    monitor_thread = threading.Thread(target=_progress_monitor)
+    monitor_thread.start()
+
     for t in threads:
         t.join()
 
+    stop_monitor.set()
+    monitor_thread.join()
+
     actual_duration = time.perf_counter() - run_start
     gc.enable()
+
+    total_ops = _collect_total_ops()
+    progress_impl.on_measurement_tick(actual_duration, total_ops)
+    progress_impl.on_measurement_done(total_ops, actual_duration)
 
     for w in workers:
         w.close()
@@ -411,6 +446,8 @@ def run_benchmark(
     iterations_override: int | None = None,
     seed_override: int | None = None,
     capture_db_info: bool = False,
+    progress: RunProgress | None = None,
+    run_id_override: str | None = None,
 ) -> RunResult:
     """Run a complete benchmark experiment.
 
@@ -426,6 +463,7 @@ def run_benchmark(
     n_iterations = iterations_override or scenario.experiment.iterations
     seed = seed_override if seed_override is not None else scenario.experiment.seed
     pause_between = scenario.experiment.pause_between
+    progress_impl: RunProgress = progress if progress is not None else NullProgress()
 
     # Detect DB kind from first target DSN
     db_kind = "unknown"
@@ -460,6 +498,7 @@ def run_benchmark(
     )
 
     run_result = RunResult(
+        run_id=run_id_override or str(uuid.uuid4())[:8],
         schema_version=2,
         benchflow=BenchFlowInfo(git_sha=BenchFlowInfo.detect_git_sha()),
         environment=env,
@@ -483,6 +522,7 @@ def run_benchmark(
     per_stack_steps: dict[str, list[list[StepResult]]] = {}
 
     for iteration_idx in range(n_iterations):
+        progress_impl.on_iteration_start(iteration_idx + 1, n_iterations)
         if n_iterations > 1:
             logger.info(
                 "=== Iteration %d/%d ===",
@@ -499,7 +539,14 @@ def run_benchmark(
 
         iteration_targets: list[TargetResult] = []
 
-        for target in scenario.targets:
+        total_targets = len(scenario.targets)
+        for target_idx, target in enumerate(scenario.targets, start=1):
+            progress_impl.on_target_start(
+                target_name=target.stack_id,
+                stack_id=target.stack_id,
+                target_idx=target_idx,
+                total_targets=total_targets,
+            )
             if _is_external_target(target):
                 # --- External (subprocess) worker path ---
                 # The external process handles setup, warmup, measurement, and
@@ -513,6 +560,11 @@ def run_benchmark(
                     raise
 
                 iteration_targets.append(target_result)
+                progress_impl.on_target_done(
+                    stack_id=target.stack_id,
+                    total_ops=sum(s.ops for s in target_result.steps),
+                    status=target_result.status,
+                )
 
                 if target.stack_id not in per_stack_steps:
                     per_stack_steps[target.stack_id] = []
@@ -533,21 +585,35 @@ def run_benchmark(
                 try:
                     # Execute setup queries if defined
                     if scenario.setup and scenario.setup.queries:
-                        setup_worker = factory.create(-1)  # Special index for setup worker
-                        setup_worker.setup(
-                            dsn=target.dsn,
-                            worker_config=target.worker_config,
-                            scenario=scenario,
-                        )
-                        setup_worker.open()
-                        _execute_setup_queries(setup_worker, scenario.setup.queries)
-                        setup_worker.close()
-                        setup_worker = None
+                        progress_impl.on_setup_start()
+                        try:
+                            setup_worker = factory.create(-1)  # Special index for setup worker
+                            setup_worker.setup(
+                                dsn=target.dsn,
+                                worker_config=target.worker_config,
+                                scenario=scenario,
+                            )
+                            setup_worker.open()
+                            _execute_setup_queries(setup_worker, scenario.setup.queries)
+                            setup_worker.close()
+                            setup_worker = None
+                        finally:
+                            progress_impl.on_setup_done()
 
                     # Run the actual benchmark iteration
                     logger.info("Running target: %s", target.stack_id)
-                    target_result = run_target(scenario, target, rng=iter_rng)
+                    target_result = run_target(
+                        scenario,
+                        target,
+                        rng=iter_rng,
+                        progress=progress_impl,
+                    )
                     iteration_targets.append(target_result)
+                    progress_impl.on_target_done(
+                        stack_id=target.stack_id,
+                        total_ops=sum(s.ops for s in target_result.steps),
+                        status=target_result.status,
+                    )
 
                     # Track for cross-iteration aggregation
                     if target.stack_id not in per_stack_steps:
@@ -564,6 +630,7 @@ def run_benchmark(
                 finally:
                     # Execute teardown queries if defined
                     if scenario.teardown and scenario.teardown.queries:
+                        progress_impl.on_teardown_start()
                         td_worker = factory.create(-1)
                         td_worker.setup(
                             dsn=target.dsn,
@@ -580,6 +647,8 @@ def run_benchmark(
                                 td_worker.close()
                             except Exception:
                                 pass
+                        finally:
+                            progress_impl.on_teardown_done()
 
                     # Close setup worker if still open (error path)
                     if setup_worker is not None:
@@ -596,9 +665,11 @@ def run_benchmark(
             duration_s=sum(t.duration_s for t in iteration_targets),
         )
         iteration_results.append(iter_result)
+        progress_impl.on_iteration_done(iteration_idx + 1)
 
         # Pause between iterations (skip after last)
         if n_iterations > 1 and iteration_idx < n_iterations - 1 and pause_between > 0:
+            progress_impl.on_pause(pause_between)
             logger.info("Pausing %.1fs between iterations...", pause_between)
             time.sleep(pause_between)
 
