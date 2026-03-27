@@ -1,0 +1,134 @@
+name: cubrid-mysql-delete-sequential
+description: "Delete by primary key \u2014 CUBRID (pycubrid) vs MySQL (PyMySQL). Replicates\
+  \ cubrid-benchmark Tier 1 bench_delete_sequential.\n"
+setup:
+  queries:
+  - DROP TABLE IF EXISTS bench_delete
+  - CREATE TABLE bench_delete (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100)
+    NOT NULL, amount INT NOT NULL)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_1', 1001)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_2', 1002)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_3', 1003)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_4', 1004)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_5', 1005)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_6', 1006)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_7', 1007)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_8', 1008)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_9', 1009)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_10', 1010)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_11', 1011)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_12', 1012)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_13', 1013)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_14', 1014)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_15', 1015)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_16', 1016)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_17', 1017)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_18', 1018)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_19', 1019)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_20', 1020)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_21', 1021)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_22', 1022)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_23', 1023)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_24', 1024)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_25', 1025)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_26', 1026)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_27', 1027)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_28', 1028)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_29', 1029)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_30', 1030)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_31', 1031)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_32', 1032)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_33', 1033)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_34', 1034)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_35', 1035)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_36', 1036)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_37', 1037)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_38', 1038)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_39', 1039)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_40', 1040)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_41', 1041)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_42', 1042)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_43', 1043)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_44', 1044)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_45', 1045)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_46', 1046)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_47', 1047)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_48', 1048)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_49', 1049)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_50', 1050)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_51', 1051)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_52', 1052)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_53', 1053)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_54', 1054)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_55', 1055)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_56', 1056)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_57', 1057)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_58', 1058)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_59', 1059)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_60', 1060)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_61', 1061)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_62', 1062)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_63', 1063)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_64', 1064)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_65', 1065)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_66', 1066)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_67', 1067)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_68', 1068)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_69', 1069)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_70', 1070)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_71', 1071)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_72', 1072)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_73', 1073)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_74', 1074)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_75', 1075)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_76', 1076)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_77', 1077)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_78', 1078)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_79', 1079)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_80', 1080)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_81', 1081)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_82', 1082)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_83', 1083)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_84', 1084)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_85', 1085)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_86', 1086)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_87', 1087)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_88', 1088)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_89', 1089)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_90', 1090)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_91', 1091)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_92', 1092)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_93', 1093)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_94', 1094)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_95', 1095)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_96', 1096)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_97', 1097)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_98', 1098)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_99', 1099)
+  - INSERT INTO bench_delete (name, amount) VALUES ('User_100', 1100)
+teardown:
+  queries:
+  - DROP TABLE IF EXISTS bench_delete
+steps:
+- name: delete-by-pk
+  query: DELETE FROM bench_delete WHERE id = %(id)s
+  params:
+    id: random_int(1, 1000)
+load:
+  concurrency: 1
+  duration: 30
+  warmup:
+    duration: 3
+experiment:
+  iterations: 5
+  seed: 42
+  pause_between: 2.0
+targets:
+- name: pycubrid
+  stack_id: python+pycubrid
+  driver: pycubrid
+  dsn: cubrid://dba:@localhost:33000/benchdb
+- name: pymysql
+  stack_id: python+pymysql
+  driver: pymysql
+  dsn: mysql://root:bench@localhost:3306/benchdb
