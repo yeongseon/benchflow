@@ -147,6 +147,55 @@ def bootstrap_ci(
     )
 
 
+def bootstrap_ratio_ci(
+    baseline_values: list[float],
+    contender_values: list[float],
+    confidence: float = 0.95,
+    n_resamples: int = 10_000,
+    rng: random.Random | None = None,
+) -> tuple[ConfidenceInterval, bool]:
+    """Compute bootstrap CI for the ratio of means (contender / baseline).
+
+    Returns (ci, significant) where significant is True when the CI excludes 1.0.
+    """
+    n_b = len(baseline_values)
+    n_c = len(contender_values)
+    if n_b < 2 or n_c < 2:
+        mean_b = sum(baseline_values) / n_b if n_b else 1.0
+        mean_c = sum(contender_values) / n_c if n_c else 1.0
+        ratio = mean_c / mean_b if mean_b != 0 else 0.0
+        ci = ConfidenceInterval(low=ratio, high=ratio, confidence=confidence)
+        return ci, False
+
+    _rng = rng or random.Random()
+    ratios: list[float] = []
+
+    for _ in range(n_resamples):
+        b_sample = [baseline_values[_rng.randint(0, n_b - 1)] for _ in range(n_b)]
+        c_sample = [contender_values[_rng.randint(0, n_c - 1)] for _ in range(n_c)]
+        mean_b = sum(b_sample) / n_b
+        mean_c = sum(c_sample) / n_c
+        if mean_b > 0:
+            ratios.append(mean_c / mean_b)
+
+    if not ratios:
+        ci = ConfidenceInterval(low=0.0, high=0.0, confidence=confidence)
+        return ci, False
+
+    ratios.sort()
+    alpha = 1 - confidence
+    low_idx = int(alpha / 2 * len(ratios))
+    high_idx = int((1 - alpha / 2) * len(ratios)) - 1
+
+    ci = ConfidenceInterval(
+        low=ratios[low_idx],
+        high=ratios[high_idx],
+        confidence=confidence,
+    )
+    significant = ci.low > 1.0 or ci.high < 1.0
+    return ci, significant
+
+
 def compute_aggregate_metric(
     values: list[float],
     confidence: float = 0.95,

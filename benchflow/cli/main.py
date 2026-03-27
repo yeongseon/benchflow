@@ -26,9 +26,15 @@ except ImportError:
     pass
 
 try:
+    import benchflow.workers.python.cubriddb_worker  # noqa: F401, E402  # pyright: ignore[reportUnusedImport]
+except ImportError:
+    pass
+
+try:
     import benchflow.workers.python.pymysql_worker  # noqa: F401, E402  # pyright: ignore[reportUnusedImport]
 except ImportError:
     pass
+from benchflow.core.metrics.aggregator import bootstrap_ratio_ci
 from benchflow.core.result import CompareResult, ComparisonItem, RunResult
 from benchflow.core.scenario.schema import Scenario
 from benchflow.workers.protocol import get_worker_factory
@@ -45,6 +51,7 @@ _WORKER_IMPORT_MAP: dict[str, str] = {
     "python+sqlalchemy": "benchflow.workers.python.sqlalchemy_worker",
     "python+pymysql": "benchflow.workers.python.pymysql_worker",
     "python+pycubrid": "benchflow.workers.python.pycubrid_worker",
+    "python+cubriddb": "benchflow.workers.python.cubriddb_worker",
 }
 
 _DB_PRESETS: dict[str, dict[str, str]] = {
@@ -207,6 +214,9 @@ def compare(
     baseline_targets = {t.stack_id: t for t in baseline.targets}
     contender_targets = {t.stack_id: t for t in contender.targets}
 
+    baseline_iter_metrics = _collect_iteration_metrics(baseline)
+    contender_iter_metrics = _collect_iteration_metrics(contender)
+
     common_stacks = set(baseline_targets.keys()) & set(contender_targets.keys())
 
     for stack_id in sorted(common_stacks):
@@ -222,6 +232,13 @@ def compare(
             bs = baseline_steps[step_name]
             cs = contender_steps[step_name]
             throughput_values[(stack_id, step_name)] = (bs.throughput_ops_s, cs.throughput_ops_s)
+
+            ratio_ci = None
+            significant = None
+            b_p50s = baseline_iter_metrics.get((stack_id, step_name, "p50_ns"), [])
+            c_p50s = contender_iter_metrics.get((stack_id, step_name, "p50_ns"), [])
+            if len(b_p50s) >= 2 and len(c_p50s) >= 2:
+                ratio_ci, significant = bootstrap_ratio_ci(b_p50s, c_p50s)
 
             comparisons.append(
                 ComparisonItem(
@@ -242,6 +259,8 @@ def compare(
                     if bs.throughput_ops_s > 0
                     else 0.0,
                     error_delta=cs.errors - bs.errors,
+                    ratio_ci=ratio_ci,
+                    significant=significant,
                 )
             )
 
@@ -824,6 +843,8 @@ def _print_summary(result: RunResult) -> None:
 
         console.print(Panel(table, title=target.stack_id, border_style="cyan"))
 
+    _print_cv_warnings(result)
+
     console.print("\n[bold]🏆 Summary[/bold]")
     if len(result.targets) <= 1:
         console.print("  [dim]Single target run; no cross-target comparison needed.[/dim]")
@@ -851,6 +872,35 @@ def _print_summary(result: RunResult) -> None:
         )
 
 
+_CV_WARN_THRESHOLD = 0.20
+_CV_CRITICAL_THRESHOLD = 0.50
+
+
+def _print_cv_warnings(result: RunResult) -> None:
+    if not result.aggregate:
+        return
+
+    warnings: list[str] = []
+    for agg_target in result.aggregate:
+        for agg_step in agg_target.steps:
+            cv = agg_step.p50_ns.cv
+            if cv >= _CV_CRITICAL_THRESHOLD:
+                warnings.append(
+                    f"[red]⚠ {agg_target.stack_id}/{agg_step.step_name}: "
+                    f"CV={cv:.0%} — results unreliable, check for system noise[/red]"
+                )
+            elif cv >= _CV_WARN_THRESHOLD:
+                warnings.append(
+                    f"[yellow]⚠ {agg_target.stack_id}/{agg_step.step_name}: "
+                    f"CV={cv:.0%} — consider more iterations[/yellow]"
+                )
+
+    if warnings:
+        console.print()
+        for w in warnings:
+            console.print(f"  {w}")
+
+
 def _print_comparison(
     compare: CompareResult,
     throughput_values: dict[tuple[str, str], tuple[float, float]] | None = None,
@@ -861,6 +911,7 @@ def _print_comparison(
     table.add_column("Baseline", justify="right")
     table.add_column("Contender", justify="right")
     table.add_column("Change", justify="right")
+    table.add_column("Sig.", justify="center")
 
     throughput_values = throughput_values or {}
 
@@ -869,6 +920,9 @@ def _print_comparison(
             (comparison.stack_id, comparison.step),
             (0.0, 0.0),
         )
+
+        sig_label = _format_significance(comparison)
+
         rows = [
             (
                 "p50",
@@ -898,12 +952,25 @@ def _print_comparison(
 
         for index, (metric, baseline_value, contender_value, change) in enumerate(rows):
             stack_step = f"{comparison.stack_id}\n{comparison.step}" if index == 0 else ""
-            table.add_row(stack_step, metric, baseline_value, contender_value, change)
+            sig_cell = sig_label if index == 0 else ""
+            table.add_row(
+                stack_step, metric, baseline_value, contender_value, change, sig_cell
+            )
 
     console.print(table)
     console.print(f"\nBaseline: {compare.baseline_run_id} → Contender: {compare.contender_run_id}")
     if not compare.scenario_match:
         console.print("[yellow]⚠ Scenario signatures differ[/yellow]")
+
+
+def _format_significance(item: ComparisonItem) -> str:
+    if item.ratio_ci is None or item.significant is None:
+        return "[dim]—[/dim]"
+    ci = item.ratio_ci
+    ci_text = f"[{ci.low:.2f}, {ci.high:.2f}]"
+    if item.significant:
+        return f"[bold green]✓[/bold green] {ci_text}"
+    return f"[dim]✗[/dim] {ci_text}"
 
 
 def _format_change(ratio: float, higher_is_better: bool) -> str:
@@ -916,6 +983,26 @@ def _format_change(ratio: float, higher_is_better: bool) -> str:
         arrow = "↓" if ratio <= 1.0 else "↑"
     color = "green" if improved else "red"
     return f"[{color}]{arrow} {ratio:.2f}x[/{color}]"
+
+
+def _collect_iteration_metrics(
+    result: RunResult,
+) -> dict[tuple[str, str, str], list[float]]:
+    """Map (stack_id, step_name, metric_name) → per-iteration values from multi-iteration data."""
+    collected: dict[tuple[str, str, str], list[float]] = defaultdict(list)
+
+    for iteration in result.iterations:
+        for target in iteration.targets:
+            for step in target.steps:
+                ls = step.latency_summary
+                collected[(target.stack_id, step.name, "p50_ns")].append(ls.p50_ns)
+                collected[(target.stack_id, step.name, "p95_ns")].append(ls.p95_ns)
+                collected[(target.stack_id, step.name, "p99_ns")].append(ls.p99_ns)
+                collected[(target.stack_id, step.name, "throughput_ops_s")].append(
+                    step.throughput_ops_s
+                )
+
+    return dict(collected)
 
 
 if __name__ == "__main__":
