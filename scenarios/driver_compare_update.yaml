@@ -1,0 +1,96 @@
+name: driver-compare-update-delete
+description: >
+  UPDATE and DELETE throughput — pycubrid vs CUBRIDdb (same CUBRID instance).
+  Pre-populates 100 rows, then runs UPDATE and DELETE steps.
+
+setup:
+  queries:
+    - DROP TABLE IF EXISTS bench_modify
+    - >
+      CREATE TABLE bench_modify (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        amount INT NOT NULL
+      )
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_1', 1001)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_2', 1002)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_3', 1003)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_4', 1004)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_5', 1005)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_6', 1006)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_7', 1007)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_8', 1008)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_9', 1009)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_10', 1010)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_11', 1011)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_12', 1012)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_13', 1013)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_14', 1014)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_15', 1015)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_16', 1016)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_17', 1017)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_18', 1018)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_19', 1019)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_20', 1020)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_21', 1021)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_22', 1022)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_23', 1023)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_24', 1024)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_25', 1025)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_26', 1026)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_27', 1027)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_28', 1028)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_29', 1029)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_30', 1030)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_31', 1031)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_32', 1032)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_33', 1033)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_34', 1034)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_35', 1035)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_36', 1036)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_37', 1037)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_38', 1038)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_39', 1039)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_40', 1040)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_41', 1041)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_42', 1042)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_43', 1043)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_44', 1044)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_45', 1045)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_46', 1046)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_47', 1047)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_48', 1048)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_49', 1049)
+    - INSERT INTO bench_modify (name, amount) VALUES ('User_50', 1050)
+
+teardown:
+  queries:
+    - DROP TABLE IF EXISTS bench_modify
+
+steps:
+  - name: update-row
+    query: UPDATE bench_modify SET amount = %(amount)s WHERE id = %(id)s
+    params:
+      id: random_int(1, 50)
+      amount: random_int(1, 10000)
+
+load:
+  concurrency: 1
+  duration: 30
+  warmup:
+    duration: 5
+
+experiment:
+  iterations: 5
+  seed: 42
+  pause_between: 2.0
+
+targets:
+  - name: pycubrid
+    stack_id: python+pycubrid
+    driver: pycubrid
+    dsn: cubrid://dba:@localhost:33000/benchdb
+  - name: cubriddb
+    stack_id: python+cubriddb
+    driver: cubriddb
+    dsn: cubrid://dba:@localhost:33000/benchdb
